@@ -4,7 +4,9 @@
 
 > **Note:** This project does not aim to compete with other established backup solutions. It is not intended to replace them. The purpose of this utility is to address common data archival tasks for SOHO (Small Office/Home Office) users. The utility has only been tested with the HPE Ultrium 1760 SAS LTO-4 tape drive, which is the device I use and have access to.
 
-![tapedrive-control main](docs/tapedrive-control_main-menu.png)
+<p align="center">
+  <img src="docs/tapedrive-control_main-menu.png" alt="tapedrive-control main" />
+</p>
 
 ## 1 Getting ready
 
