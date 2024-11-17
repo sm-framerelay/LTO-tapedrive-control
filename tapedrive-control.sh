@@ -622,6 +622,16 @@ function write_all_on_tape(){
 	show_workdir_content
 
 	number_of_items=$(count_files_and_folders "$WORKING_DIR")
+	
+	# If there are no files
+	if [ $number_of_items -eq 0 ]; then
+		echo -e "\nThe directory ${BRIGHT_CYAN}'$WORKING_DIR'${NC} contains ${BRIGHT_CYAN}'$number_of_items'${NC} files."
+		echo "Nothign to write to the tape."
+		
+		press_any_continue
+		
+		main_menu_loop
+	fi
 
 	echo -e "\nThe directory ${BRIGHT_CYAN}'$WORKING_DIR'${NC} content will be transferred to the tape."
 	echo "Each root file or directory will be placed into a separate TAR archive and"
