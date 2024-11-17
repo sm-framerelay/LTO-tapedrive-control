@@ -543,85 +543,11 @@ function erase_tape(){
 	press_any_continue
 }
 
-#Function which appends new data at the end of Tape data
-function append_on_tape(){
-	clear
-
-	write_warning_and_confirm
-	status=$?
-	
-	clear
-	
-	# If the user chose not to proceed.
-	if [ $status -ne 0 ]; then
-		main_menu_loop
-	fi
-
-	# Show what is in the source directory and its size
-	show_workdir_content
-
-	echo -e "\nThe directory ${BRIGHT_CYAN}'$WORKING_DIR'${NC} content will be ${BRIGHT_RED}appended${NC} to the tape."
-	echo "Each root file or directory will be placed into a separate TAR archive and"
-	echo "will be written as an independent record on the tape. The number of TAR archives"
-	echo -e "will be equal to the number of files or folders in the current directory.\n"
-
-	are_you_sure_to_write_all
-	status=$?
-	
-	# If the user chose not to proceed.
-	if [ $status -ne 0 ]; then
-		main_menu_loop
-	fi
-	
-	print_message "$BRIGHT_YELLOW" "\n> Getting tape device ready and check the status\n"
-	
-	# rewind tape to zero position
-	mt -f $TAPE_DEVICE status
-
-	# Capture an exit status of the mt command
-	check_terminate_existstatus "$?"
-	
-	# set tape block size for all further operations
-	set_tape_block_size
-	
-	# positioning Tape at the end of media
-	print_message "$BRIGHT_YELLOW" "\n> Searching the EOM (End of Media) mark.\n"
-
-	# EOM throws an input/output error with no reason, so we are supressing all outputs from it
-	mt -f $TAPE_DEVICE eom &>/dev/null
-	
-	# reposition to EOF mark
-	mt -f $TAPE_DEVICE bsf
-	
-	# skip last record EOF mark in order not to corrupt the record
-	mt -f $TAPE_DEVICE fsf
-	
-	# Loop through each item in the root of WORKING_DIR
-	for ITEM in "$WORKING_DIR"/*; do
-		if [ -e "$ITEM" ]; then
-			# Get the base name of the item
-			BASENAME=$(basename "$ITEM")
-
-			# Create a tar archive and write it to the tape
-			echo -e "> Archiving ${BRIGHT_CYAN}'$BASENAME'${NC} to the tape..."
-
-			if tar -cvf "$TAPE_DEVICE" -b "$TAR_BLOCK_SIZE" -C "$WORKING_DIR" "$BASENAME"; then
-				echo -e "> The '$ITEM' is archived to the tape. [${BRIGHT_GREEN}OK${NC}]\n"
-			else
-				echo -e "> Error archiving '$ITEM': tar command failed. [${RED}FAIL${NC}]\n"
-			fi
-		fi
-	done
-
-	echo -e "> All files and directories have been archived to tape. [${BRIGHT_GREEN}Done${NC}]\n"
-
-	press_any_continue
-		
-	main_menu_loop
-}
-
 #Function which writes all content from source directory on the Tape
+#depends on first argument it might append the data or get it overriden
 function write_all_on_tape(){
+	local append=$1  # Capture option argument
+	
 	clear
 
 	write_warning_and_confirm
@@ -648,8 +574,13 @@ function write_all_on_tape(){
 		
 		main_menu_loop
 	fi
-
-	echo -e "\nThe directory ${BRIGHT_CYAN}'$WORKING_DIR'${NC} content will be transferred to the tape."
+	
+	if [ "$append" = "append" ]; then
+		echo -e "\nThe directory ${BRIGHT_CYAN}'$WORKING_DIR'${NC} content will be ${BRIGHT_RED}appended${NC} to the tape."
+	else
+		echo -e "\nThe directory ${BRIGHT_CYAN}'$WORKING_DIR'${NC} content will be transferred to the tape."
+	fi
+	
 	echo "Each root file or directory will be placed into a separate TAR archive and"
 	echo "will be written as an independent record on the tape."
 	echo -e "The number of TAR archives will be ${BRIGHT_CYAN}'$number_of_items'${NC} which is equal to the number of"
@@ -662,15 +593,35 @@ function write_all_on_tape(){
 	if [ $status -ne 0 ]; then
 		main_menu_loop
 	fi
-	
-	print_message "$BRIGHT_YELLOW" "\n> Getting tape device ready and rewind the Tape to initial position\n"
-	
-	# rewind tape to zero position
-	mt -f $TAPE_DEVICE rewind
 
-	# Capture an exit status of the mt command
-	check_terminate_existstatus "$?"
-	
+	if [ "$append" = "append" ]; then
+		# rewind tape to zero position
+		mt -f $TAPE_DEVICE status
+
+		# Capture an exit status of the mt command
+		check_terminate_existstatus "$?"
+		
+		# positioning Tape at the end of media
+		print_message "$BRIGHT_YELLOW" "\n> Searching the EOM (End of Media) mark.\n"
+
+		# EOM throws an input/output error with no reason, so we are supressing all outputs from it
+		mt -f $TAPE_DEVICE eom &>/dev/null
+		
+		# reposition to EOF mark
+		mt -f $TAPE_DEVICE bsf
+		
+		# skip last record EOF mark in order not to corrupt the record
+		mt -f $TAPE_DEVICE fsf
+	else
+		print_message "$BRIGHT_YELLOW" "\n> Getting tape device ready and rewind the Tape to initial position\n"
+		
+		# rewind tape to zero position
+		mt -f $TAPE_DEVICE rewind
+		
+		# Capture an exit status of the mt command
+		check_terminate_existstatus "$?"
+	fi
+
 	# set tape block size for all further operations
 	set_tape_block_size
 
@@ -836,7 +787,7 @@ function main_menu_loop() {
 		case $choice in
 			1) read_or_list_content;;
 			2) read_content_at_exact_possition;;
-			3) append_on_tape;;
+			3) write_all_on_tape 'append';;
 			4) write_all_on_tape;;
 			5) erase_tape;;
 			6) show_device_status;;
