@@ -186,6 +186,20 @@ function check_set_tapeblocksz(){
 	esac
 }
 
+# Function which counts files and folders in the path provided
+function count_files_and_folders(){
+	local dir_path="$1"
+	
+	# Check if the provided path is a directory
+	if [ -d "$dir_path" ]; then
+		# Use ls to list all items and wc -l to count them
+		ls -1A "$dir_path" | wc -l
+	else
+		echo "Error: The path provided is not a valid directory."
+		return 1
+	fi
+}
+
 # Function which sets tape block size for chosen operation according to global settings
 function set_tape_block_size(){
 	mt -f $TAPE_DEVICE setblk $(($TAPE_BLOCK_SIZE * 1024))
@@ -607,10 +621,13 @@ function write_all_on_tape(){
 	# Show what is in the source directory and its size
 	show_workdir_content
 
+	number_of_items=$(count_files_and_folders "$WORKING_DIR")
+
 	echo -e "\nThe directory ${BRIGHT_CYAN}'$WORKING_DIR'${NC} content will be transferred to the tape."
 	echo "Each root file or directory will be placed into a separate TAR archive and"
-	echo "will be written as an independent record on the tape. The number of TAR archives"
-	echo -e "will be equal to the number of files or folders in the current directory.\n"
+	echo "will be written as an independent record on the tape."
+	echo -e "The number of TAR archives will be ${BRIGHT_CYAN}'$number_of_items'${NC} which is equal to the number of"
+	echo -e "files or folders in the current directory.\n"
 
 	are_you_sure_to_write_all
 	status=$?
@@ -631,17 +648,35 @@ function write_all_on_tape(){
 	# set tape block size for all further operations
 	set_tape_block_size
 
+	# Start time tracking for the whole process
+	start_time=$(date +%s)
+	
+	# current file counter
+	current_file_no=0
+	
 	# Loop through each item in the root of WORKING_DIR
 	for ITEM in "$WORKING_DIR"/*; do
 		if [ -e "$ITEM" ]; then
+			# Increment the current file counter
+			((current_file_no++))
+			
 			# Get the base name of the item
 			BASENAME=$(basename "$ITEM")
 
 			# Create a tar archive and write it to the tape
-			echo -e "> Archiving ${BRIGHT_CYAN}'$BASENAME'${NC} to the tape..."
-
+			echo -e "> Archiving [${BRIGHT_WHITE}'${current_file_no}' of '${number_of_items}'${NC}] ${BRIGHT_CYAN}'$BASENAME'${NC} to the tape..."
+			
+			# stopwatch start
+			item_start_time=$(date +%s)
+			
 			if tar -cvf "$TAPE_DEVICE" -b "$TAR_BLOCK_SIZE" -C "$WORKING_DIR" "$BASENAME"; then
-				echo -e "> The '$ITEM' is archived to the tape. [${BRIGHT_GREEN}OK${NC}]\n"
+				# stopwatch stop
+				item_end_time=$(date +%s)
+				
+				# elapsed time for item archival process
+				item_elapsed_time=$((item_end_time - item_start_time))
+				
+				echo -e "> The '$ITEM' is archived to the tape in ${BRIGHT_CYAN}'${item_elapsed_time}'${NC} sec. [${BRIGHT_GREEN}OK${NC}]\n"
 			else
 				echo -e "> Error archiving '$ITEM': tar command failed. [${RED}FAIL${NC}]\n"
 			fi
