@@ -316,9 +316,6 @@ function read_all_content_on_tape() {
 		fi
 	done
 
-	print_message "$BRIGHT_YELLOW" "> Rewinding the Tape to initial position ..."
-	mt -f $TAPE_DEVICE rewind
-	
 	echo -e "> [${BRIGHT_GREEN}Done${NC}]"
 	
 	press_any_continue
@@ -376,9 +373,6 @@ function list_all_content_on_tape() {
 		fi
 	done
 
-	print_message "$BRIGHT_YELLOW" "> Rewinding the Tape to initial position ..."
-	mt -f $TAPE_DEVICE rewind
-	
 	echo -e "> [${BRIGHT_GREEN}Done${NC}]"
 	
 	press_any_continue
