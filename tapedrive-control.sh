@@ -111,7 +111,7 @@ function write_warning_and_confirm() {
 			;;
 		[Nn][Oo])
 			echo "Returning to the main menu."
-			show_menu
+			return 1
 		 	;;
 		*)
 			echo "Invalid input, please enter yes or no."
