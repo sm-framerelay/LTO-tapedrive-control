@@ -94,6 +94,22 @@ function show_workdir_content(){
 	echo -e "\nThe total size of the directory is: ${BRIGHT_GREEN}$total_size_gb GB${NC}"
 }
 
+# Function which calculates current item size in megabytes
+function get_item_size_mb(){
+	local item_path="$1"
+	local item_size_bytes item_size_mb
+
+	# Calculate size in bytes
+	item_size_bytes=$(du -sb "$item_path" | cut -f1)
+
+	# Convert bytes to megabytes using integer arithmetic
+	# Multiplying by 100 to allow for two decimal places
+	item_size_mb=$(( (item_size_bytes * 100 + 512 * 1024) / (1024 * 1024) )) # Rounded up
+
+	# Echo the integer value with simulated decimals
+	echo "${item_size_mb}"
+}
+
 # Function to show data override warning
 function write_warning_and_confirm() {
 	clear
@@ -672,9 +688,15 @@ function write_all_on_tape(){
 			
 			# Get the base name of the item
 			BASENAME=$(basename "$ITEM")
-
+			
+			# Get current item size
+			item_size_mb=$(get_item_size_mb "$ITEM")
+			
+			# Convert to string representation with two decimal places
+			item_size_decimals_mb="${item_size_mb%??}.${item_size_mb: -2}"
+			
 			# Create a tar archive and write it to the tape
-			echo -e "> Archiving [${BRIGHT_WHITE}'${current_file_no}' of '${number_of_items}'${NC}] ${BRIGHT_CYAN}'$BASENAME'${NC} to the tape..."
+			echo -e "> Archiving [${BRIGHT_WHITE}${current_file_no} of ${number_of_items}${NC}] ${BRIGHT_CYAN}'$BASENAME'${NC} (${BRIGHT_GREEN}${item_size_decimals_mb} MB${NC}) to the tape..."
 			
 			# stopwatch start
 			item_start_time=$(date +%s)
@@ -686,7 +708,16 @@ function write_all_on_tape(){
 				# elapsed time for item archival process
 				item_elapsed_time=$((item_end_time - item_start_time))
 				
-				echo -e "> The '$ITEM' is archived to the tape in ${BRIGHT_CYAN}'${item_elapsed_time}'${NC} sec. [${BRIGHT_GREEN}OK${NC}]\n"
+				# Calculate transfer rate in MB/s
+				if [ "$item_elapsed_time" -gt 0 ]; then
+					# Multiply by 100 to maintain two decimal places
+					transfer_rate_hundredths=$(( item_size_mb / item_elapsed_time ))
+					transfer_rate="${transfer_rate_hundredths%??}.${transfer_rate_hundredths: -2}"
+				else
+					transfer_rate="N/A"
+				fi
+				
+				echo -e "> The '$ITEM' is archived to the tape in ${BRIGHT_CYAN}'${item_elapsed_time}'${NC} sec at ${BRIGHT_CYAN}'${transfer_rate} MB/s'${NC}. [${BRIGHT_GREEN}OK${NC}]\n"
 			else
 				echo -e "> Error archiving '$ITEM': tar command failed. [${RED}FAIL${NC}]\n"
 			fi
@@ -696,7 +727,7 @@ function write_all_on_tape(){
 	echo -e "> All files and directories have been archived to tape. [${BRIGHT_GREEN}Done${NC}]\n"
 
 	press_any_continue
-		
+
 	main_menu_loop
 }
 
